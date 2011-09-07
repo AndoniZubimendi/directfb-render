@@ -22,6 +22,9 @@ install: build_render
 	@echo "Use system = render"
 	@echo "Acuerdese tambien de poner pixelformat = ARGB"
 
+uninstall: 
+	rm -rf $(DIRECTFB_DRIVER_PATH)/systems/$(DRIVER)
+
 clean:
 	rm -rf src/*.o $(DRIVER) build_render
 
