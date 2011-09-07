@@ -1,0 +1,279 @@
+diff -urN x11.orig/primary.c x11/primary.c
+--- x11.orig/primary.c	2011-07-31 15:47:56.000000000 -0300
++++ x11/primary.c	2011-09-07 19:02:45.946186509 -0300
+@@ -720,8 +720,34 @@
+      /* ...and immediately queue or send the next! */
+      if (x11->use_shm) {
+           /* Just queue the command, it's XShm :) */
++
++	if (x11->use_render) {
++		GC gc = XCreateGC(xw->display, xw->render_drawable, 0, NULL);
++                XShmPutImage( xw->display, xw->render_drawable, xw->gc, ximage,
++                        rect.x, rect.y + offset, rect.x, rect.y, 
++                        rect.w, rect.h, False );
++		XFreeGC(xw->display, gc);
++	        XRenderPictureAttributes pict_attr;
++	        pict_attr.poly_edge=PolyEdgeSmooth;
++	        pict_attr.poly_mode=PolyModeImprecise;
++	        unsigned long int pict_mask = CPPolyEdge|CPPolyMode;
++		unsigned long picture = XRenderCreatePicture(xw->display, 
++			xw->render_drawable, 
++			xw->render_fmt, 
++			pict_mask, &pict_attr);
++			XRenderComposite(xw->display, PictOpSrc, 
++				picture, None, 
++				xw->render_picture, 
++				0, 0, 
++				0, 0, 
++				0, 0, 
++				rect.w, rect.h);
++		XRenderFreePicture(xw->display, picture);
++		XSync( x11->display, False );
++	} else {
+           XShmPutImage( xw->display, xw->window, xw->gc, ximage,
+                         rect.x, rect.y + offset, rect.x, rect.y, rect.w, rect.h, False );
++	}
+ 
+           /* Make sure the queue has really happened! */
+           XFlush( x11->display );
+diff -urN x11.orig/x11.c x11/x11.c
+--- x11.orig/x11.c	2011-07-31 15:47:56.000000000 -0300
++++ x11/x11.c	2011-09-07 19:16:09.000000000 -0300
+@@ -147,9 +147,14 @@
+           return DFB_INIT;
+      }
+ 
++     int dummy;
++     x11->use_render = XRenderQueryExtension(x11->display, &dummy, &dummy);
++     D_INFO( "X11/Display: %ssing XRender Extension.\n", x11->use_render ? "U" : "Not u" );
++
+      x11->screenptr = DefaultScreenOfDisplay(x11->display);
+      x11->screennum = DefaultScreen(x11->display);
+-     d              = DefaultDepthOfScreen(x11->screenptr);
++     //d              = DefaultDepthOfScreen(x11->screenptr);
++     d              = 32; 
+ 
+      for (i=0; i<x11->screenptr->ndepths; i++) {
+           const Depth *depth = &x11->screenptr->depths[i];
+diff -urN x11.orig/x11.h x11/x11.h
+--- x11.orig/x11.h	2010-09-17 02:42:15.000000000 -0300
++++ x11/x11.h	2011-08-26 11:26:49.000000000 -0300
+@@ -94,6 +94,7 @@
+      int                  screennum;
+                      
+      Visual              *visuals[DFB_NUM_PIXELFORMATS];
++     Bool                 use_render;
+ };
+ 
+ typedef enum {
+diff -urN x11.orig/x11image.c x11/x11image.c
+--- x11.orig/x11image.c	2011-07-31 15:47:56.000000000 -0300
++++ x11/x11image.c	2011-09-07 18:50:39.376269929 -0300
+@@ -62,7 +62,10 @@
+      image->width  = width;
+      image->height = height;
+      image->format = format;
+-     image->depth  = DFB_COLOR_BITS_PER_PIXEL( format );
++     if (x11->use_render)
++         image->depth  = 32; 
++     else
++         image->depth  = DFB_COLOR_BITS_PER_PIXEL( format );
+ 
+      D_MAGIC_SET( image, x11Image );
+ 
+diff -urN x11.orig/xwindow.c x11/xwindow.c
+--- x11.orig/xwindow.c	2010-10-08 09:18:53.000000000 -0300
++++ x11/xwindow.c	2011-09-07 19:21:07.533414696 -0300
+@@ -37,6 +37,7 @@
+ #include <direct/mem.h>
+ 
+ #include "x11.h"
++#include <X11/extensions/Xrender.h>
+ 
+ D_DEBUG_DOMAIN( X11_Window, "X11/Window", "X11 Window handling" );
+ 
+@@ -73,6 +74,51 @@
+      return 0;
+ }
+ 
++int
++dfb_x11_init_render(XWindow *xw) {
++	int nvi;
++	XVisualInfo templ;
++	templ.screen = DefaultScreen(xw->display);
++	templ.depth = 32;
++	templ.class = TrueColor;
++
++	XVisualInfo *xvi = XGetVisualInfo(xw->display, VisualScreenMask | VisualDepthMask| VisualClassMask, &templ, &nvi);
++
++	int depth;
++	int argbVisual = 0;
++	XRenderPictFormat *fmt= 0;
++	Visual *visual = 0;
++	
++	Colormap colormap = 0;
++
++	int i;
++
++	for (i = 0;i < nvi; i++) {
++		fmt=XRenderFindVisualFormat(xw->display, xvi[i].visual);
++		if (fmt->type == PictTypeDirect && fmt->direct.alphaMask) {
++			visual = xvi[i].visual;
++			colormap = XCreateColormap(xw->display, DefaultRootWindow(xw->display), visual, AllocNone);
++			depth = xvi[i].depth;
++			argbVisual = 1;
++			break;
++		}	
++	}
++
++
++	if (argbVisual) {
++     		D_INFO( "X11/Display: XRender ARGB Visual found.\n");
++		xw->render_visual = visual;
++		xw->render_fmt = fmt;
++		xw->render_colormap = colormap;
++		xw->render_depth = depth;
++	} else {
++     		D_INFO( "X11/Display: XRender ARGB Visual not found.\n");
++	}
++
++	return argbVisual;
++
++}
++
+ Bool
+ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format )
+ {
+@@ -82,20 +128,30 @@
+ 
+      D_DEBUG_AT( X11_Window, "Creating %4dx%4d %s window...\n", iWidth, iHeight, dfb_pixelformat_name(format) );
+ 
++
+      xw = D_CALLOC( 1, sizeof(XWindow) );
+-     if (!xw)
+-          return D_OOM();
+ 
+      /* We set the structure as needed for our window */
+      xw->width   = iWidth;
+      xw->height  = iHeight;
+      xw->display = x11->display;
+ 
++     if (x11->use_render) {
++        if (!dfb_x11_init_render(xw)) {
++            D_FREE( xw );
++            return False;
++        }
++     }
++ 
+      xw->screenptr = DefaultScreenOfDisplay(xw->display);
+      xw->screennum = DefaultScreen(xw->display);
+-     xw->depth     = DefaultDepthOfScreen(xw->screenptr);
++     if (x11->use_render) 
++         xw->depth     = xw->render_depth;
++     else
++         xw->depth     = DefaultDepthOfScreen(xw->screenptr);
+      xw->visual    = DefaultVisualOfScreen(xw->screenptr);
+ 
++     attr.colormap = xw->render_colormap;
+      attr.event_mask =
+             ButtonPressMask
+           | ButtonReleaseMask
+@@ -105,16 +161,24 @@
+           | ExposureMask
+           | StructureNotifyMask;
+ 
++     //attr.background_pixel  = 0x80 <<24 | BlackPixelOfScreen(xw->screenptr);
+      XLockDisplay( x11->display );
+ 
+      old_error_handler = XSetErrorHandler( error_handler );
+ 
+      error_code = 0;
++     long unsigned int attr_mask = CWEventMask |  CWBackPixel |
++                                   CWBorderPixel | CWColormap;
++     attr.background_pixel = XBlackPixel(xw->display, x11->screennum);
++     attr.border_pixel = XBlackPixel(xw->display, x11->screennum);
+ 
+      xw->window = XCreateWindow( xw->display,
+                                  RootWindowOfScreen(xw->screenptr),
+                                  iXPos, iYPos, iWidth, iHeight, 0, xw->depth, InputOutput,
+-                                 xw->visual, CWEventMask, &attr );
++                                 xw->render_visual, attr_mask, &attr );
++     if (x11->use_render) {
++         xw->render_drawable = XCreatePixmap(xw->display, xw->window, iWidth, iHeight, xw->depth);
++     }
+      XSync( xw->display, False );
+      if (!xw->window || error_code) {
+           D_FREE( xw );
+@@ -122,7 +186,6 @@
+           return False;
+      }
+ 
+-
+      XSizeHints Hints;
+ 
+      /*
+@@ -146,8 +209,14 @@
+      /* We change the title of the window (default:Untitled) */
+      XStoreName(xw->display,xw->window,"DFB X11 system window");
+ 
+-     xw->gc = XCreateGC(xw->display, xw->window, 0, NULL);
+-
++     XGCValues gcvalues;
++     gcvalues.function = GXcopy;
++     gcvalues.subwindow_mode = IncludeInferiors;
++     unsigned long gcactive = 0; //GCFunction | GCSubwindowMode;
++     
++    
++     xw->gc = XCreateGC(xw->display, xw->window, gcactive, &gcvalues);
++   
+ #if 0
+      // Create a null cursor
+      Pixmap  pixmp1;
+@@ -278,6 +347,12 @@
+ 
+      (*ppXW) = xw;
+ 
++     XRenderPictureAttributes pict_attr;
++     pict_attr.poly_edge=PolyEdgeSmooth;
++     pict_attr.poly_mode=PolyModeImprecise;
++     unsigned long int pict_mask = CPPolyEdge|CPPolyMode;
++     xw->render_picture = XRenderCreatePicture (xw->display, xw->window, xw->render_fmt, pict_mask, &pict_attr);
++
+      return True;
+ }
+ 
+@@ -289,7 +364,7 @@
+           shmdt( xw->shmseginfo->shmaddr );
+           shmctl( xw->shmseginfo->shmid, IPC_RMID, NULL );
+           D_FREE( xw->shmseginfo );
+-     }
++}
+ 
+      XDestroyImage( xw->ximage );
+ 
+diff -urN x11.orig/xwindow.h x11/xwindow.h
+--- x11.orig/xwindow.h	2010-09-17 02:42:15.000000000 -0300
++++ x11/xwindow.h	2011-09-07 15:38:46.000000000 -0300
+@@ -34,6 +34,7 @@
+ #include <X11/keysym.h>  /* for a perfect use of keyboard events */
+ 
+ #include <X11/extensions/XShm.h>
++#include <X11/extensions/Xrender.h>
+ #include <sys/ipc.h>
+ #include <sys/shm.h>
+ 
+@@ -64,6 +65,14 @@
+ 
+      /* (Null) cursor stuff*/
+      Cursor              NullCursor;
++
++     /* XRender extension */
++     Picture		render_picture;
++     Visual             *render_visual;
++     XRenderPictFormat  *render_fmt;
++     Colormap           render_colormap;
++     int                render_depth;
++     Pixmap		render_drawable;
+ } XWindow;
+ 
+ Bool dfb_x11_open_window ( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWidth, int iHeight, DFBSurfacePixelFormat format );

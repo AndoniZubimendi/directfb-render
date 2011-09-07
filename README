@@ -1,0 +1,24 @@
+This is the X11 DirectFB driver (from version 1.4.14) + Render + Composite 
+support.
+
+Build and install using:
+	# make
+	# make install
+
+To uninstall
+	# make uninstall
+
+Make sure you add this to your directfbrc configuration:
+
+	system = render
+	pixelformat = ARGB	# make uninstall
+
+Make sure you add this to your directfbrc configuration:
+
+	system = render
+	pixelformat = ARGB	# make uninstall
+
+Make sure you add this to your directfbrc configuration:
+
+	system = render
+	pixelformat = ARGB	
