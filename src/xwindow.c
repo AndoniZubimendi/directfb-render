@@ -206,10 +206,10 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
 
      if (window_id_env) {
      	if (x11_parse_windowid_env(window_id_env, &rootwin, &create_window)) {
-            D_INFO( "X11/Display: Using window id %lx as our %swindow", rootwin,
+            D_INFO( "X11/Display: Using window id 0x%lx as our %swindow\n", rootwin,
 	              (create_window)?"parent ":"");
 	} else {
-            D_INFO( "X11/Display: Error parsing DIRECTFB_WINDOWID" );
+            D_INFO( "X11/Display: Error parsing DIRECTFB_WINDOWID\n" );
 	}
      }
 
