@@ -232,28 +232,28 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
           return False;
      }
 
-     XSizeHints Hints;
-
-     /*
-      * Here we inform the function of what we are going to change for the
-      * window (there's also PPosition but it's obsolete)
-      */
-     Hints.flags    =    PSize | PMinSize | PMaxSize;
-
-     /*
-      * Now we set the structure to the values we need for width & height.
-      * For esthetic reasons we set Width=MinWidth=MaxWidth.
-      * The same goes for Height. You can try whith differents values, or
-      * let's use Hints.flags=Psize; and resize your window..
-      */
-     Hints.min_width          =    Hints.max_width          =    Hints.base_width    =    xw->width;
-     Hints.min_height    =    Hints.max_height    =    Hints.base_height   =    xw->height;
-
-     /* Now we can set the size hints for the specified window */
-     XSetWMNormalHints(xw->display,xw->window,&Hints);
-
-     /* We change the title of the window (default:Untitled) */
      if (create_window) {
+         XSizeHints Hints;
+
+        /*
+         * Here we inform the function of what we are going to change for the
+         * window (there's also PPosition but it's obsolete)
+         */
+         Hints.flags    =    PSize | PMinSize | PMaxSize;
+
+         /*
+          * Now we set the structure to the values we need for width & height.
+          * For esthetic reasons we set Width=MinWidth=MaxWidth.
+          * The same goes for Height. You can try whith differents values, or
+          * let's use Hints.flags=Psize; and resize your window..
+          */
+          Hints.min_width          =    Hints.max_width          =    Hints.base_width    =    xw->width;
+          Hints.min_height    =    Hints.max_height    =    Hints.base_height   =    xw->height;
+
+          /* Now we can set the size hints for the specified window */
+          XSetWMNormalHints(xw->display,xw->window,&Hints);
+
+          /* We change the title of the window (default:Untitled) */
           XStoreName(xw->display,xw->window,"DFB X11 system window");
      }
 
