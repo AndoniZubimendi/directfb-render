@@ -1,0 +1,5 @@
+This example creates a Window, then calls Ginga with the 
+environment variable DIRECTFB_WINDOW set with the Window Id created.
+
+The first command line argument is the NCL application to be called,
+if not specified main.ncl is used

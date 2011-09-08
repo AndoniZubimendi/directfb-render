@@ -1,4 +1,5 @@
 *.o
 libdirectfb_render.so
 build_render
+test-ginga
 *.swp
