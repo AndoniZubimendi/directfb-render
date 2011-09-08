@@ -11,14 +11,6 @@ To uninstall
 Make sure you add this to your directfbrc configuration:
 
 	system = render
-	pixelformat = ARGB	# make uninstall
-
-Make sure you add this to your directfbrc configuration:
-
-	system = render
-	pixelformat = ARGB	# make uninstall
-
-Make sure you add this to your directfbrc configuration:
-
-	system = render
 	pixelformat = ARGB	
+
+You need to have a Composite Manager running
