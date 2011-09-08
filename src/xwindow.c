@@ -174,10 +174,22 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
      attr.background_pixel = XBlackPixel(xw->display, x11->screennum);
      attr.border_pixel = XBlackPixel(xw->display, x11->screennum);
 
-     xw->window = XCreateWindow( xw->display,
-                                 RootWindowOfScreen(xw->screenptr),
-                                 iXPos, iYPos, iWidth, iHeight, 0, xw->depth, InputOutput,
-                                 xw->render_visual, attr_mask, &attr );
+     char *window_id_env = getenv("DIRECTFB_WINDOWID");
+     int rootwin = RootWindowOfScreen(xw->screenptr);
+     int create_window = 1;
+
+     if (window_id_env) {
+     }
+
+     if (create_window) {
+       xw->window = XCreateWindow( xw->display,
+                                   rootwin,
+                                   iXPos, iYPos, iWidth, iHeight, 0, xw->depth, InputOutput,
+                                   xw->render_visual, attr_mask, &attr );
+     } else {
+       xw->window = rootwin;
+     }
+
      if (x11->use_render) {
          xw->render_drawable = XCreatePixmap(xw->display, xw->window, iWidth, iHeight, xw->depth);
      }
@@ -209,7 +221,9 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
      XSetWMNormalHints(xw->display,xw->window,&Hints);
 
      /* We change the title of the window (default:Untitled) */
-     XStoreName(xw->display,xw->window,"DFB X11 system window");
+     if (create_window) {
+          XStoreName(xw->display,xw->window,"DFB X11 system window");
+     }
 
      XGCValues gcvalues;
      gcvalues.function = GXcopy;
