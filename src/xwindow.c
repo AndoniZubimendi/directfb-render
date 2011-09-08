@@ -76,9 +76,40 @@ error_handler( Display *display, XErrorEvent *event )
      return 0;
 }
 
-int
+static  int 
+x11_parse_windowid_env(const char *value, unsigned long *id, int *create) {
+	int create_v = 0;
+	int base = 10;
+	char *endptr;
+	unsigned long id_r;
+
+	if (!value || !id)
+		return 0;
+
+	if (*value == '+') {
+		value++;
+		create_v = 1;
+	}
+
+	if (strncasecmp(value, "0x", 2) == 0) {
+		base = 16;
+		value +=2;
+	}
+
+	id_r = strtoul(value, &endptr, base);
+	if (*endptr != '\0')
+		return 0;
+
+        /* Only update variables if everything is OK */
+	if (create)
+		*create = create_v;
+	*id = id_r;
+	return 1;
+}
+
+static int
 dfb_x11_init_render(XWindow *xw) {
-	int nvi;
+	int nvi, i;
 	XVisualInfo templ;
 	templ.screen = DefaultScreen(xw->display);
 	templ.depth = 32;
@@ -90,10 +121,7 @@ dfb_x11_init_render(XWindow *xw) {
 	int argbVisual = 0;
 	XRenderPictFormat *fmt= 0;
 	Visual *visual = 0;
-	
 	Colormap colormap = 0;
-
-	int i;
 
 	for (i = 0;i < nvi; i++) {
 		fmt=XRenderFindVisualFormat(xw->display, xvi[i].visual);
@@ -106,7 +134,6 @@ dfb_x11_init_render(XWindow *xw) {
 		}	
 	}
 
-
 	if (argbVisual) {
      		D_INFO( "X11/Display: XRender ARGB Visual found.\n");
 		xw->render_visual = visual;
@@ -118,7 +145,6 @@ dfb_x11_init_render(XWindow *xw) {
 	}
 
 	return argbVisual;
-
 }
 
 Bool
@@ -175,10 +201,16 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
      attr.border_pixel = XBlackPixel(xw->display, x11->screennum);
 
      char *window_id_env = getenv("DIRECTFB_WINDOWID");
-     int rootwin = RootWindowOfScreen(xw->screenptr);
+     unsigned long int rootwin = RootWindowOfScreen(xw->screenptr);
      int create_window = 1;
 
      if (window_id_env) {
+     	if (x11_parse_windowid_env(window_id_env, &rootwin, &create_window)) {
+            D_INFO( "X11/Display: Using window id %lx as our %swindow", rootwin,
+	              (create_window)?"parent ":"");
+	} else {
+            D_INFO( "X11/Display: Error parsing DIRECTFB_WINDOWID" );
+	}
      }
 
      if (create_window) {
