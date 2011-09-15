@@ -743,7 +743,7 @@ update_screen( DFBX11 *x11, const DFBRectangle *clip, CoreSurfaceBufferLock *loc
 				0, 0, 
 				0, 0, 
 				0, 0, 
-				rect.w, rect.h);
+				xw->width, xw->height);
 		XRenderFreePicture(xw->display, picture);
 		XSync( x11->display, False );
 	} else {
