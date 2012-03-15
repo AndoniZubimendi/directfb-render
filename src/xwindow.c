@@ -107,6 +107,28 @@ x11_parse_windowid_env(const char *value, unsigned long *id, int *create) {
 	return 1;
 }
 
+static  int 
+x11_parse_windowid_event(const char *value, unsigned long *id) {
+	int base = 10;
+	char *endptr;
+	unsigned long id_r;
+
+	if (!value || !id)
+		return 0;
+
+	if (strncasecmp(value, "0x", 2) == 0) {
+		base = 16;
+		value +=2;
+	}
+
+	id_r = strtoul(value, &endptr, base);
+	if (*endptr != '\0')
+		return 0;
+
+	*id = id_r;
+	return 1;
+}
+
 static int
 dfb_x11_init_render(XWindow *xw) {
 	int nvi, i;
@@ -201,17 +223,31 @@ dfb_x11_open_window( DFBX11 *x11, XWindow** ppXW, int iXPos, int iYPos, int iWid
      attr.border_pixel = XBlackPixel(xw->display, x11->screennum);
 
      char *window_id_env = getenv("DIRECTFB_WINDOWID");
+     char *window_id_event = getenv("DIRECTFB_WINDOWEVENT");
      unsigned long int rootwin = RootWindowOfScreen(xw->screenptr);
+     unsigned long int eventwin = 0;
      int create_window = 1;
 
      if (window_id_env) {
      	if (x11_parse_windowid_env(window_id_env, &rootwin, &create_window)) {
             D_INFO( "X11/Display: Using window id 0x%lx as our %swindow\n", rootwin,
 	              (create_window)?"parent ":"");
-	} else {
+  	} else {
             D_INFO( "X11/Display: Error parsing DIRECTFB_WINDOWID\n" );
 	}
+
      }
+     
+
+     if (window_id_event) {
+     	if (x11_parse_windowid_event(window_id_event, &eventwin)) {
+            D_INFO( "X11/Display: Using window id 0x%lx as our event replay events,\n", rootwin);
+  	} else {
+            D_INFO( "X11/Display: Error parsing DIRECTFB_WINDOWEVENT\n" );
+	}
+
+     }
+     x11->event_window = eventwin;
 
      if (create_window) {
        xw->window = XCreateWindow( xw->display,

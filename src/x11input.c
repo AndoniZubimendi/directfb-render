@@ -542,6 +542,20 @@ x11EventThread( DirectThread *thread, void *driver_data )
 
           while (!data->stop && pull-- && XPending( x11->display )) {
                XNextEvent( x11->display, &xEvent );
+               if (x11->event_window) {
+                 XEvent ev = xEvent;
+                 int windowId = x11->event_window;
+                 Bool prop = True;
+                 long mask = ButtonPressMask
+                             | ButtonReleaseMask
+                             | PointerMotionMask
+                             | KeyPressMask
+                             | KeyReleaseMask
+                             | ExposureMask
+                             | StructureNotifyMask;
+                 XSendEvent( x11->display, windowId, prop, 
+                             mask, &xEvent );
+               }
 
                /* is this key repeat? idea from GII */
                if ( (xEvent.type == KeyRelease) && (XPending( x11->display )) ) {

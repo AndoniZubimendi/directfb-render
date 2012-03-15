@@ -97,6 +97,7 @@ struct __DFB_X11 {
                      
      Visual              *visuals[DFB_NUM_PIXELFORMATS];
      Bool                 use_render;
+     Window               event_window;
 };
 
 typedef enum {
