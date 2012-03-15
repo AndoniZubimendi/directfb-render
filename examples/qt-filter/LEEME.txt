@@ -1,0 +1,14 @@
+Ejemplo que nos muestra todos los eventos que recibe una ventana.
+El ejemplo esta copiado de http://lists.trolltech.com/qt-interest/2002-06/thread01148-0.html
+
+Para compilarlo, ejecutar qmake y luego make
+
+Si se llama a una aplicación de DirectFB con el sistema render, se 
+puede definir la variable de entorno DIRECTFB_WINDOWEVENT para
+que se envien los eventos recibidos por la aplicacion a esa ventana.
+
+Una manera de recuperar esos eventos puede ser utilizando el metodo
+x11EventFilter de QApplication (en Qt). 
+
+Si se quieren realizar pruebas rápidas, con el comando xwininfo se puede 
+obtener el WindowId de una ventana.

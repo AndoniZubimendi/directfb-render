@@ -1,0 +1,1 @@
+SOURCES = src/test.cpp
