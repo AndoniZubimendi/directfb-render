@@ -2,4 +2,6 @@
 libdirectfb_render.so
 build_render
 test-ginga
+test
 *.swp
+examples/qt-filter/Makefile
